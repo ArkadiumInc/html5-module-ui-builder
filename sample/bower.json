@@ -1,0 +1,21 @@
+{
+  "name": "arkadium-ui-builder-sample",
+  "description": "Should be changed a litle bit later",
+  "authors": [
+    "Dmitriy Popelnitskiy <popelnitskiyd@arkadium.com>"
+  ],
+  "license": "MIT",
+  "moduleType": [],
+  "homepage": "",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "devDependencies": {
+    "phaser": "~2.4.8"
+  }
+}
