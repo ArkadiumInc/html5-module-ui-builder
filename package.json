@@ -1,11 +1,8 @@
 {
-  "name": "arkadium-ui-builder-test",
-  "version": "1.0.1",
-  "description": "Should be changed a litle bit later",
+  "name": "arkadium-ui-builder",
+  "version": "1.0.0",
+  "description": "Arkadium UI Builder",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "author": "Arkadium Inc",
   "license": "ISC"
 }
