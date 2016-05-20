@@ -1,8 +1,16 @@
 {
   "name": "arkadium-ui-builder",
   "version": "1.0.0",
-  "description": "Arkadium UI Builder",
+  "description": "Realization of GUI Builder functionality",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArkadiumInc/html5-module-ui-builder.git"
+  },
   "author": "Arkadium Inc",
-  "license": "ISC"
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ArkadiumInc/html5-module-ui-builder/issues"
+  },
+  "homepage": "https://github.com/ArkadiumInc/html5-module-ui-builder#readme"
 }
