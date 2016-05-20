@@ -1,5 +1,5 @@
 {
-  "name": "arkadium-ui-builder",
+  "name": "arkadium-gui-builder",
   "version": "1.0.0",
   "description": "Realization of GUI Builder functionality",
   "main": "index.js",
