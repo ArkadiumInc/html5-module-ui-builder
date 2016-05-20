@@ -1,22 +1,16 @@
-/**
- * Created by popelnitskiyd on 5/19/2016.
- */
+'use strict';
 
-// ========================= Requirements =========================
+var game = new Phaser.Game(1600, 1200, Phaser.AUTO, 'game-template'); // jshint ignore:line
 
 
-// ========================= Construction =========================
-
-var main = function () {
-    "use strict";
+window.Utils = require('./utils/utils');
+window.playerState = {
+    currentLevel: 'Game'
 };
 
-// ========================= Prototype ============================
+game.state.add('Boot', require('./states/boot'));
+game.state.add('Preloader', require('./states/preloader'));
+game.state.add('Menu', require('./states/menu'));
+//game.state.add('Game', require('./states/game'));
 
-main.prototype = {};
-
-main.prototype.constructor = main;
-
-// ========================= Exports ==============================
-
-module.exports = main;
+game.state.start('Boot');

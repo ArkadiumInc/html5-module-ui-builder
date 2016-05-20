@@ -1,76 +1,142 @@
-/**
- * Created by popelnitskiyd on 5/19/2016.
- */
+var gulp = require('gulp')
+  , gutil = require('gulp-util')
+  , rimraf = require('gulp-rimraf')
+  , concat = require('gulp-concat')
+  , rename = require('gulp-rename')
+  , minifycss = require('gulp-minify-css')
+  , minifyhtml = require('gulp-minify-html')
+  , processhtml = require('gulp-processhtml')
+  , jshint = require('gulp-jshint')
+  , streamify = require('gulp-streamify')
+  , uglify = require('gulp-uglify')
+  , connect = require('gulp-connect')
+  , source = require('vinyl-source-stream')
+  , browserify = require('browserify')
+  , watchify = require('watchify')
+  , gulpif = require('gulp-if')
+  , runSequence = require('run-sequence')
+  , paths;
+  //test
 
-var gulp = require('gulp');
-var rimraf = require('gulp-rimraf');
-var util = require('gulp-util');
-var connect = require('gulp-connect');
-var processhtml = require('gulp-processhtml');
-var queue = require('run-sequence');
-var browserfy = require('gulp-browserify');
-var bower = require('gulp-bower');
+var watching = false;
 
-var paths = {
-    all: ['src/*.*', 'src/**/*.*'],
-    src: 'src/',
-    libs: 'libs/',
-    phaser: './bower_components/phaser/build/phaser.min.js',
-    js: 'js/main.js',
-    html: '*.html',
-    dist: './dist/'
+paths = {
+  assets: 'src/assets/**/*',
+  css:    'src/css/*.css',
+  libs:   [
+    'src/js/libs/*.js'
+  ],
+  js:     ['src/js/*.js', 'src/js/**/*.js'],
+  entry: './src/js/main.js',
+  dist:   './dist/'
 };
 
-gulp.task('bower:install', function() {
-    return bower();
+gulp.task('clean', function () {
+  return gulp.src(paths.dist, {read: false})
+    .pipe(rimraf({ force: false }))
+    .on('error', gutil.log);
 });
 
-gulp.task('clean', function() {
-    return gulp.src([paths.dist], {read: false})
-        .pipe(rimraf({forse: false}))
-        .on('error', util.log);
+gulp.task('copy', function () {
+  return gulp.src(paths.assets)
+    .pipe(gulp.dest(paths.dist + 'assets'))
+    .on('error', gutil.log);
 });
 
-gulp.task('copy:libs', function() {
-    return gulp.src(paths.phaser)
-        .pipe(gulp.dest(paths.dist + paths.libs))
-        .on('error', util.log);
+gulp.task('scripts', function() {
+    return gulp.src(paths.libs)
+        .pipe(concat('all.js'))
+        .pipe(gulp.dest(paths.dist));
 });
 
-gulp.task('js:compile', function() {
-    return gulp.src(paths.src + paths.js, {read: false})
-        .pipe(browserfy({debug: true}))
-        .pipe(gulp.dest(paths.dist))
-        .on('error', util.log);
+gulp.task('copylibs', function () {
+  return  gulp.src(paths.libs)
+    .pipe(gulpif(!watching, uglify({outSourceMaps: false})))
+    .pipe(gulp.dest(paths.dist + 'js/libs'))
+    .on('error', gutil.log);
 });
 
-gulp.task('html:compile', function() {
-    return gulp.src(paths.src + paths.html)
-        .pipe(processhtml())
-        .pipe(gulp.dest(paths.dist))
-        .on('error', util.log);
+gulp.task('compile', function () {
+  var bundler = browserify({
+    cache: {}, packageCache: {}, fullPaths: true,
+    entries: [paths.entry],
+    debug: watching
+  });
+
+  var bundlee = function() {
+    return bundler
+      .bundle()
+      .pipe(source('main.min.js'))
+      .pipe(jshint('.jshintrc'))
+      .pipe(jshint.reporter('default'))
+      .pipe(gulpif(!watching, streamify(uglify({outSourceMaps: false}))))
+      .pipe(gulp.dest(paths.dist))
+      .on('error', gutil.log);
+  };
+
+  if (watching) {
+    bundler = watchify(bundler);
+    bundler.on('update', bundlee)
+  }
+
+  return bundlee();
 });
 
-gulp.task('connect', function() {
-    connect.server({root: [paths.dist], port: 9000, livereload: false});
+gulp.task('minifycss', function () {
+  return  gulp.src(paths.css)
+    .pipe(gulpif(!watching, minifycss({
+      keepSpecialComments: false,
+      removeEmpty: true
+    })))
+    .pipe(rename({suffix: '.min'}))
+    .pipe(gulp.dest(paths.dist + "css/"))
+    .on('error', gutil.log);
 });
 
-gulp.task('reconnect', function() {
-    gulp.src(paths.dist).pipe(connect.reload()).on('error', util.log);
+gulp.task('processhtml', function() {
+  return gulp.src('src/index.html')
+    .pipe(processhtml('index.html'))
+    .pipe(gulp.dest(paths.dist))
+    .on('error', gutil.log);
 });
 
-gulp.task('watch', function() {
-    return gulp.watch(paths.all, ['recompile']);
+gulp.task('processAndminifyhtml', function() {
+  return gulp.src('dist/index.html')
+    .pipe(processhtml('index.html'))
+    .pipe(minifyhtml())
+    .pipe(gulp.dest(paths.dist))
+    .on('error', gutil.log);
 });
 
-gulp.task('compile', function() {
-    queue('bower:install', 'clean', 'copy:libs', 'js:compile', 'html:compile', 'watch');
+gulp.task('html', function(){
+  gulp.src('dist/*.html')
+    .pipe(connect.reload())
+    .on('error', gutil.log);
 });
 
-gulp.task('recompile', function() {
-    queue('js:compile', 'html:compile', 'reconnect');
+gulp.task('connect', function () {
+  connect.server({
+    root: ['./dist'],
+    port: 9000,
+    livereload: false
+  });
 });
 
-gulp.task('default', function() {
-    queue('compile', 'connect');
+gulp.task('watch', function () {
+  watching = true;
+  return gulp.watch(['./src/index.html', paths.css, paths.js],['rebuildSync']);
 });
+
+
+gulp.task('default', ['buildSync', 'connect', 'watch']);
+//gulp.task('build', ['clean', 'copy', 'copylibs', 'compile', 'minifycss', 'processAndminifyhtml']);
+gulp.task('build', function(){
+  runSequence('clean', 'copy', 'copylibs', 'compile', 'minifycss', 'processAndminifyhtml');
+});
+gulp.task('buildSync', function(){
+  runSequence('clean', 'copy', 'copylibs', 'compile', 'minifycss', 'processhtml');
+});
+gulp.task('rebuildSync', function(){
+  return runSequence('compile','html');
+});
+
