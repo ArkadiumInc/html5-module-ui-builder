@@ -1,6 +1,6 @@
 {
   "name": "arkadium-gui-builder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Realization of GUI Builder functionality",
   "main": "index.js",
   "repository": {
