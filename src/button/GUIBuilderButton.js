@@ -1,18 +1,16 @@
 /**
  * Created by JIocb on 2/1/2016.
  */
-GUIBuilderButton = function (game, overFrame, outFrame, downFrame, upFrame) {
+GUIBuilderButton = function (game, upFrame,overFrame,downFrame,outFrame) {
     "use strict";
-    this._callback = null;
-    this._callbackContext = this;
     this._game = game;
-
+    this._id = Math.random();
     Phaser.Group.call(this, this._game,null);
 
     this._frameByState = {};
     this._frameByState[STATE_OVER] = overFrame;
-    this._frameByState[STATE_OUT] = outFrame;
-    this._frameByState[STATE_DOWN] = downFrame;
+    this._frameByState[STATE_OUT] = outFrame || upFrame;
+    this._frameByState[STATE_DOWN] = downFrame || overFrame;
     this._frameByState[STATE_UP] = upFrame;
 
     if(upFrame)
@@ -84,8 +82,6 @@ GUIBuilderButton = function (game, overFrame, outFrame, downFrame, upFrame) {
     this._hitArea.onOverMouseOnly = true;
 
 
-    //this.justReleasedPreventsOver = Phaser.PointerMode.TOUCH;
-
     this.freezeFrames = false;
 
     this.forceOut = false;
@@ -100,11 +96,6 @@ GUIBuilderButton = function (game, overFrame, outFrame, downFrame, upFrame) {
     this.changeStateFrame(STATE_OUT);
 
 
-    //  Redirect the input events to here so we can handle animation updates, etc
-    this._hitArea.events.onInputOver.add(this.onInputOverHandler, this);
-    this._hitArea.events.onInputOut.add(this.onInputOutHandler, this);
-    this._hitArea.events.onInputDown.add(this.onInputDownHandler, this);
-    this._hitArea.events.onInputUp.add(this.onInputUpHandler, this);
 
     this._hitArea.events.onRemovedFromWorld.add(this.removedFromWorld, this);
 
@@ -122,24 +113,96 @@ var STATE_UP = 'Up';
 
 GUIBuilderButton.prototype.removePressListener = function (callback,callbackContext) {
     "use strict";
-    if (this._hitArea !== null)
+    if(callback == null || callbackContext == null)
     {
-        this._hitArea.onInputUp.remove(this._callback, this._callbackContext);
-        this._callback = null;
-        this._callbackContext = null;
+        return;
+    }
+    else
+    {
+        if(this._pressCallBacks) {
+            var l = this._pressCallBacks.length;
+            for (var i = 0; i < l; i++) {
+                var obj = this._pressCallBacks[i];
+                if (callback == obj.callback && callbackContext == obj.callbackContext) {
+                    this._pressCallBacks.splice(i, 1);
+                    i--;
+                    l--;
+                }
+            }
+        }
     }
 
-}
+    if (this._hitArea != null)
+    {
+        this._hitArea.onInputUp.remove(callback, callbackContext);
+
+        this._hitArea.events.onInputOver.remove(this.onInputOverHandler, this);
+        this._hitArea.events.onInputOut.remove(this.onInputOutHandler, this);
+        this._hitArea.events.onInputDown.remove(this.onInputDownHandler, this);
+        this._hitArea.events.onInputUp.remove(this.onInputUpHandler, this);
+    }
+
+    //console.log("removePressListener",this._id,this._pressCallBacks);
+};
+
+/*GUIBuilderButton.prototype.__defineGetter__("visible", function(){
+    return Phaser.Group.prototype.visible;
+});
+
+GUIBuilderButton.prototype.__defineSetter__("visible", function(val){
+    Phaser.Group.prototype.visible.apply(val) = val;
+    if(val == false)
+    {
+        this.changeStateFrame(STATE_OUT);
+    }
+});*/
+
+GUIBuilderButton.prototype.addLabel = function (text, style) {
+    "use strict";
+
+    this._label = new Phaser.BitmapText(this._game,0,0, style.font, text, style.fontSize);
+    this._label.align = "center";
+
+    this._label.tint = style.tint;
+    //this._label.tint = 0xc6fffd;
+
+    this._label.anchor.set(.5,.5);
+    this._label.x = this._hitArea.width*.5;
+    this._label.y = this._hitArea.height*.6;
+    this._label.inputEnabled = false;
+    this.addChild(this._label);
+    return this._label;
+};
 
 GUIBuilderButton.prototype.addPressListener = function (callback,callbackContext) {
     "use strict";
-    if (this._hitArea !== null)
-     {
-         this._callback = callback;
-         this._callbackContext = callbackContext;
-         this._hitArea.onInputUp.add(this._callback, this._callbackContext);
+    //console.log("addPressListener",this._id,this._pressCallBacks);
+
+    if (this._hitArea != null)
+    {
+
+        //  Redirect the input events to here so we can handle animation updates, etc
+        if(this._hitArea.events.onInputOver.has(this.onInputOverHandler,this) == false)
+        {
+            this._hitArea.events.onInputOver.add(this.onInputOverHandler, this);
+            this._hitArea.events.onInputOut.add(this.onInputOutHandler, this);
+            this._hitArea.events.onInputDown.add(this.onInputDownHandler, this);
+            this._hitArea.events.onInputUp.add(this.onInputUpHandler, this);
+        }
+        if(this._pressCallBacks == null)
+        {
+
+
+            this._pressCallBacks = [];
+        }
+        if(!callback || !callbackContext) return;
+
+        this._pressCallBacks[this._pressCallBacks.length] = {callback:callback,callbackContext:callbackContext};
+
+        this._hitArea.onInputUp.add(callback, callbackContext);
      }
 
+    //console.log(" >>addPressListener",this._id,this._pressCallBacks);
 }
 GUIBuilderButton.prototype.clearFrames = function () {
     "use strict";
@@ -160,7 +223,7 @@ GUIBuilderButton.prototype.changeStateFrame = function (state) {
         return false;
     }
 
-    var frame = this._frameByState[state];
+   var frame = this._frameByState[state];
     if(frame)
     {
         if(this._frameByState[STATE_OVER])
@@ -180,8 +243,31 @@ GUIBuilderButton.prototype.changeStateFrame = function (state) {
     }
     else
     {
-        return false;
+       return false;
     }
+
+    /*var frame = this._frameByState[state];
+    if(frame)
+    {
+        if(this._frameByState[STATE_OVER])
+            this._frameByState[STATE_OVER].alpha = 0;
+
+        if(this._frameByState[STATE_DOWN])
+            this._frameByState[STATE_DOWN].alpha = 0;
+
+        if(this._frameByState[STATE_OUT])
+            this._frameByState[STATE_OUT].alpha = 0;
+
+        if(this._frameByState[STATE_UP])
+            this._frameByState[STATE_UP].alpha = 0;
+
+        frame.alpha = 1;
+        return true;
+    }
+    else
+    {
+        return false;
+    }*/
 
 };
 
@@ -262,8 +348,10 @@ GUIBuilderButton.prototype.setUpSound = function (sound, marker) {
 
 GUIBuilderButton.prototype.onInputOverHandler = function (sprite, pointer) {
     "use strict";
-    if (pointer.justReleased() &&
-        (/*this.justReleasedPreventsOver & */pointer.pointerMode) === pointer.pointerMode)
+
+    //console.log("onInputOverHandler",this._id,this._pressCallBacks);
+
+    if (pointer.justReleased())
     {
         //  If the Pointer was only just released then we don't fire an over event
         return;
@@ -291,6 +379,12 @@ GUIBuilderButton.prototype.onInputOutHandler = function (sprite, pointer) {
 
     this.playStateSound(STATE_OUT);
 
+   /* this._frameByState[STATE_DOWN].x = this._downStateSettings.x;
+    this._frameByState[STATE_DOWN].y = this._downStateSettings.y;
+
+    this._frameByState[STATE_DOWN].scale.x = this._downStateSettings.scaleX;
+    this._frameByState[STATE_DOWN].scale.y = this._downStateSettings.scaleY;*/
+
     if (this._hitArea.onInputOut)
     {
         this._hitArea.onInputOut.dispatch(this, pointer);
@@ -299,6 +393,21 @@ GUIBuilderButton.prototype.onInputOutHandler = function (sprite, pointer) {
 
 GUIBuilderButton.prototype.onInputDownHandler = function (sprite, pointer) {
     "use strict";
+    if(this._downStateSettings == null)
+    {
+        this._downStateSettings = {};
+    }
+
+    /*this._downStateSettings.scaleX = this._frameByState[STATE_DOWN].scale.x;
+    this._downStateSettings.scaleY = this._frameByState[STATE_DOWN].scale.y;
+    this._downStateSettings.x = this._frameByState[STATE_DOWN].x;
+    this._downStateSettings.y = this._frameByState[STATE_DOWN].y;
+
+    this._frameByState[STATE_DOWN].scale.x = this._downStateSettings.scaleX*.9;
+    this._frameByState[STATE_DOWN].scale.y = this._downStateSettings.scaleY*.9;
+    this._frameByState[STATE_DOWN].x += this._frameByState[STATE_DOWN].width *.05;
+    this._frameByState[STATE_DOWN].y += this._frameByState[STATE_DOWN].height *.05;*/
+
     this.changeStateFrame(STATE_DOWN);
 
     this.playStateSound(STATE_DOWN);
@@ -318,7 +427,7 @@ GUIBuilderButton.prototype.onInputUpHandler = function (sprite, pointer, isOver)
         return;
     }
 
-    if (this.forceOut === true || (this.forceOut & pointer.pointerMode) === pointer.pointerMode)
+    if (this.forceOut )
     {
         this.changeStateFrame(STATE_OUT);
     }
@@ -350,11 +459,25 @@ GUIBuilderButton.prototype.onInputUpHandler = function (sprite, pointer, isOver)
 
 GUIBuilderButton.prototype.destroy = function () {
     "use strict";
-    this._callback = null;
-    this._callbackContext = this;
     this._game = null;
     this.freezeFrames = false;
     this.forceOut = false;
+
+    if(this._label)
+    {
+        this.removeChild(this._label);
+    }
+    this._label = null;
+
+    if(this._pressCallBacks) {
+        var l = this._pressCallBacks.length;
+        for (var i = 0; i < l; i++) {
+            var obj = this._pressCallBacks[i];
+            this._hitArea.onInputUp.remove(obj.callback, obj.callbackContext);
+        }
+    }
+    this._pressCallBacks = null;
+
 
 
     if(this._frameByState[STATE_UP])
@@ -379,18 +502,18 @@ GUIBuilderButton.prototype.destroy = function () {
 
     if(this._hitArea)
     {
-        this._hitArea.physicsType = null;
-        this._hitArea.inputEnabled = false;
-        this._hitArea.onOverMouseOnly = false;
-        this._hitArea.input.stop();
-        this._hitArea.input.useHandCursor = false;
-
 
         this._hitArea.events.onInputOver.remove(this.onInputOverHandler, this);
         this._hitArea.events.onInputOut.remove(this.onInputOutHandler, this);
         this._hitArea.events.onInputDown.remove(this.onInputDownHandler, this);
         this._hitArea.events.onInputUp.remove(this.onInputUpHandler, this);
         this._hitArea.events.onRemovedFromWorld.remove(this.removedFromWorld, this);
+
+        this._hitArea.physicsType = null;
+        this._hitArea.inputEnabled = false;
+        this._hitArea.onOverMouseOnly = false;
+        this._hitArea.input.stop();
+        this._hitArea.input.useHandCursor = false;
 
 
         this._hitArea.onInputOver = null;
@@ -403,7 +526,7 @@ GUIBuilderButton.prototype.destroy = function () {
     }
     this._hitArea = null;
 
-    //this.justReleasedPreventsOver = Phaser.PointerMode.TOUCH;
+    //this.justReleasedPreventsOver = Phaser.PointerMode.CONTACT;
     this.type = null;
     this._frameByState = null;
 
